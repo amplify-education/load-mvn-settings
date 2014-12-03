@@ -1,5 +1,6 @@
 package com.amplify.gradle
 
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -14,13 +15,17 @@ class MavenSettingsPlugin implements Plugin<Project> {
 
         currentProfile.repositories.repository.each { repo ->
             def mavenRepo = {
+
                 name repo.name.text()
                 url repo.url.text()
 
-                credentials {
-                    def creds = settings.servers.server.find { it.id.equals(repo.id.text) }
-                    username creds.username.text()
-                    password creds.password.text()
+                def creds = settings.servers.server.find { it.id.equals(repo.id.text()) }
+
+                if(creds.username.text()) {
+                    credentials {
+                        username creds.username.text()
+                        password creds.password.text()
+                    }
                 }
             }
 
@@ -37,6 +42,16 @@ class MavenSettingsPlugin implements Plugin<Project> {
     }
 
     def getMavenSettingsCredentials = {
-        new XmlSlurper().parse(new File(System.getProperty("user.home"), '.m2/settings.xml'))
+        final userHomeDirName = System.getProperty("user.home")
+        if(userHomeDirName == null || userHomeDirName.isEmpty()) {
+            throw new GradleException("No user home directory specified")
+        }
+
+        final settingsFile = new File(userHomeDirName, '.m2/settings.xml')
+        if(!settingsFile.exists()) {
+            throw new GradleException("Nothing found in ~/.m2/settings.xml")
+        }
+
+        new XmlSlurper().parse(settingsFile)
     }
 }
